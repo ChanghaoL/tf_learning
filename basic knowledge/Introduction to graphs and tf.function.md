@@ -7,7 +7,7 @@ import tensorflow as tf
 import timeit
 from datetime import datetime
 ```
-###Taking advantage of graphs
+### Taking advantage of graphs
 You create and run a graph in TensorFlow by using tf.function, either as a direct call or as a decorator. tf.function takes a regular function as input and returns a Function. A Function is a Python callable that builds TensorFlow graphs from the Python function. You use a Function in the same way as its Python equivalent.
 ```buildoutcfg
 # Define a Python function.
