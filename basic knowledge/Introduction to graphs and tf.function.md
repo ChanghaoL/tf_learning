@@ -29,3 +29,30 @@ orig_value = a_regular_function(x1, y1, b1).numpy()
 tf_function_value = a_function_that_uses_a_graph(x1, y1, b1).numpy()
 assert(orig_value == tf_function_value)
 ```
+### Non-strict execution
+
+Graph execution only executes the operations necessary to produce the observable effects, which includes:
+
+- The return value of the function
+Documented well-known side-effects such as:
+Input/output operations, like tf.print
+- Debugging operations, such as the assert functions in tf.debugging
+Mutations of tf.Variable
+This behavior is usually known as "Non-strict execution", and differs from eager execution, which steps through all of the program operations, needed or not.
+
+In particular, runtime error checking does not count as an observable effect. If an operation is skipped because it is unnecessary, it cannot raise any runtime errors.
+
+In the following example, the "unnecessary" operation tf.gather is skipped during graph execution, so the runtime error InvalidArgumentError is not raised as it would be in eager execution. Do not rely on an error being raised while executing a graph.
+
+```buildoutcfg
+def unused_return_eager(x):
+  # Get index 1 will fail when `len(x) == 1`
+  tf.gather(x, [1]) # unused 
+  return x
+
+try:
+  print(unused_return_eager(tf.constant([0.0])))
+except tf.errors.InvalidArgumentError as e:
+  # All operations are run during eager execution so an error is raised.
+  print(f'{type(e).__name__}: {e}')
+```
