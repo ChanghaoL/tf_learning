@@ -1,3 +1,5 @@
+import datetime
+
 import tensorflow as tf
 
 """
@@ -115,7 +117,6 @@ checkpoint.write(chkp_path)
 track of what is actually saved and the numbering of checkpoints, while the checkpoint data contains the variable 
 values and their attribute lookup paths. """
 
-
 """https://www.tensorflow.org/guide/intro_to_modules?hl=en#saving_functions 
 TensorFlow can run models without the 
 original Python objects, as demonstrated by TensorFlow Serving and TensorFlow Lite, even when you download a trained 
@@ -128,3 +129,66 @@ This graph contains operations, or ops, that implement the function.
 
 You can define a graph in the model above by adding the @tf.function decorator to indicate that this code should run as a graph.
 """
+
+
+class MySequentialModule(tf.Module):
+    def __init__(self, name=None):
+        super().__init__(name=name)
+
+        self.dense_1 = Dense(in_features=3, out_features=3)
+        self.dense_2 = Dense(in_features=3, out_features=2)
+
+    @tf.function
+    def __call__(self, x):
+        x = self.dense_1(x)
+        return self.dense_2(x)
+
+
+# You have made a model with a graph!
+my_model = MySequentialModule(name="the_model")
+
+# Set up logging.
+stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+logdir = "logs/func/%s" % stamp
+writer = tf.summary.create_file_writer(logdir)
+
+# Create a new model to get a fresh trace
+# Otherwise the summary will not see the graph.
+new_model = MySequentialModule()
+
+# Bracket the function call with
+# tf.summary.trace_on() and tf.summary.trace_export().
+tf.summary.trace_on(graph=True)
+tf.profiler.experimental.start(logdir)
+# Call only one tf.function when tracing.
+print(new_model(tf.constant([[2.0, 2.0, 2.0]])))
+with writer.as_default():
+    tf.summary.trace_export(
+        name="my_func_trace",
+        step=0,
+        profiler_outdir=logdir)
+
+"""
+tf.keras.layers.Layer is the base class of all Keras layers, and it inherits from tf.Module.
+
+You can convert a module into a Keras layer just by swapping out the parent and then changing __call__ to call:
+更改call
+"""
+
+
+class MyDense(tf.keras.layers.Layer):
+    # Adding **kwargs to support base Keras layer arguments
+    def __init__(self, in_features, out_features, **kwargs):
+        super().__init__(**kwargs)
+
+        # This will soon move to the build step; see below
+        self.w = tf.Variable(
+            tf.random.normal([in_features, out_features]), name='w')
+        self.b = tf.Variable(tf.zeros([out_features]), name='b')
+
+    def call(self, x):
+        y = tf.matmul(x, self.w) + self.b
+        return tf.nn.relu(y)
+
+
+simple_layer = MyDense(name="simple", in_features=3, out_features=3)
