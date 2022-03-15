@@ -192,3 +192,6 @@ class MyDense(tf.keras.layers.Layer):
 
 
 simple_layer = MyDense(name="simple", in_features=3, out_features=3)
+
+
+
